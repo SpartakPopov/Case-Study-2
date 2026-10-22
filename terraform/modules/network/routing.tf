@@ -1,7 +1,7 @@
 resource "aws_route_table" "dmz_private_rt" { // table for TGW subnets
   vpc_id = aws_vpc.vpc-dmz.id
   tags   = { Name = "vpc-dmz-private-rt" }
-} 
+}
 
 resource "aws_route" "dmz_private_default" {
   route_table_id         = aws_route_table.dmz_private_rt.id

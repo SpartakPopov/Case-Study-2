@@ -5,9 +5,7 @@ module "network" {
 module "data" {
   source = "./modules/data"
 }
-module "dns" {
-  source = "./modules/dns"
-}
+
 module "monitoring" {
   source = "./modules/monitoring"
 }
@@ -20,4 +18,9 @@ module "vpn" {
 
 module "web" {
   source = "./modules/web"
+}
+
+module "dns" {
+  source = "./modules/dns"
+  vpc_id = module.network.internal_vpc_id
 }

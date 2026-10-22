@@ -6,7 +6,7 @@ provider "aws" {
 data "aws_caller_identity" "current" {} // for reading AWS account id
 
 
-resource "aws_s3_bucket" "tfstate" { 
+resource "aws_s3_bucket" "tfstate" {
   bucket = "innovatech-tfstate-${data.aws_caller_identity.current.account_id}" //uses account number for unique bucket name
 
   lifecycle {
@@ -33,11 +33,11 @@ resource "aws_s3_bucket_public_access_block" "tfstate" { // keeping state privat
 
 resource "aws_s3_bucket_versioning" "tfstate" { // for keeping old versions if needed to revert
   bucket = aws_s3_bucket.tfstate.id
-  versioning_configuration { 
-    status = "Enabled" 
+  versioning_configuration {
+    status = "Enabled"
   }
 }
 
-output "bucket_name" {  //printing bucket name if needed 
+output "bucket_name" { //printing bucket name if needed 
   value = aws_s3_bucket.tfstate.bucket
 }
