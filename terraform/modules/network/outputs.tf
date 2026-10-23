@@ -48,3 +48,11 @@ output "tgw_id" {
 output "tgw_route_table_id" {
   value = aws_ec2_transit_gateway.tgw.association_default_route_table_id
 }
+
+output "web_subnet_cidrs" {
+  value = [aws_subnet.web_a.cidr_block, aws_subnet.web_b.cidr_block]
+}
+
+output "dmz_public_subnet_cidrs" {
+  value = [aws_subnet.dmz_public_a.cidr_block, aws_subnet.dmz_public_b.cidr_block]
+}
