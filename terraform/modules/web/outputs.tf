@@ -5,3 +5,8 @@ output "alb_dns_name" {
 output "alb_target_group_arn" {
   value = aws_lb_target_group.web.arn
 }
+
+
+output "web_sg_id" {
+  value = aws_security_group.web.id
+}

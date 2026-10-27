@@ -56,3 +56,7 @@ output "web_subnet_cidrs" {
 output "dmz_public_subnet_cidrs" {
   value = [aws_subnet.dmz_public_a.cidr_block, aws_subnet.dmz_public_b.cidr_block]
 }
+
+output "monitoring_subnet_cidr" {
+  value = aws_subnet.monitoring.cidr_block
+}

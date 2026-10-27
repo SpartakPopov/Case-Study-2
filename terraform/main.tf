@@ -3,8 +3,14 @@ module "network" {
 }
 
 module "data" {
-  source = "./modules/data"
+  source                 = "./modules/data"
+  internal_vpc_id        = module.network.internal_vpc_id
+  data_subnet_ids        = module.network.data_subnet_ids
+  monitoring_subnet_cidr = module.network.monitoring_subnet_cidr
+  web_sg_id              = module.web.web_sg_id
+  zone_id                = module.dns.zone_id
 }
+
 
 module "monitoring" {
   source = "./modules/monitoring"
