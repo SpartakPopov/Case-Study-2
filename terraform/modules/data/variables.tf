@@ -26,11 +26,11 @@ variable "zone_id" {
 variable "instance_class" {
   description = "Database instance size"
   type        = string
-  default     = "db.t4g.micro"
+  default     = "db.t3.micro"
 }
 
 variable "multi_az" {
   description = "Running a SYNC standby db instance in another AZ"
   type        = bool
-  default     = true
+  default     = false
 }

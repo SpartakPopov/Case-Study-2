@@ -23,7 +23,7 @@ resource "aws_db_instance" "primary" {
   engine_version    = "8.4"
   instance_class    = var.instance_class
   allocated_storage = 20
-  storage_type      = "gp3"
+  storage_type      = "gp2"
   storage_encrypted = true
 
   db_name                     = "innovatech"
