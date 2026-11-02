@@ -1,0 +1,25 @@
+- name: Patch all Linux nodes
+  hosts: linux
+  become: true
+  serial: "50%"
+  tasks:
+    - name: Update apt cache and upgrade all packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+
+    - name: Check if a reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_flag
+
+    - name: Reboot servers if required (not the Ansible host itself)
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+      when: reboot_flag.stat.exists and inventory_hostname in groups['servers'] and inventory_hostname != 'ansible'
+
+    - name: Record last patch time
+      ansible.builtin.copy:
+        dest: /etc/innovatech-last-patch
+        content: "{{ ansible_date_time.iso8601 }}\n"

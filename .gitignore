@@ -2,3 +2,7 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
+
+*.retry
+*.log
+.vault_pass
