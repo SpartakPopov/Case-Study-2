@@ -1,0 +1,68 @@
+- name: Configure Grafana Alloy gateway on the collector
+  hosts: monitoring
+  become: true
+  tasks:
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name: [gpg, ca-certificates]
+        update_cache: true
+
+    - name: Create apt keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Add Grafana GPG key
+      ansible.builtin.get_url:
+        url: https://apt.grafana.com/gpg.key
+        dest: /etc/apt/keyrings/grafana.asc
+        mode: "0644"
+
+    - name: Add Grafana apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+        filename: grafana
+        state: present
+
+    - name: Install Alloy
+      ansible.builtin.apt:
+        name: alloy
+        state: present
+        update_cache: true
+
+    - name: Let Alloy read the systemd journal
+      ansible.builtin.user:
+        name: alloy
+        groups: [adm, systemd-journal]
+        append: true
+      notify: Restart alloy
+
+    - name: Expose Alloy UI on the network
+      ansible.builtin.lineinfile:
+        path: /etc/default/alloy
+        regexp: '^CUSTOM_ARGS='
+        line: 'CUSTOM_ARGS="--server.http.listen-addr=0.0.0.0:12345"'
+      notify: Restart alloy
+
+    - name: Deploy collector config
+      ansible.builtin.template:
+        src: collector.alloy.j2
+        dest: /etc/alloy/config.alloy
+        owner: root
+        group: alloy
+        mode: "0640"
+        validate: "alloy fmt %s"
+      notify: Restart alloy
+
+    - name: Enable and start Alloy
+      ansible.builtin.systemd:
+        name: alloy
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Restart alloy
+      ansible.builtin.systemd:
+        name: alloy
+        state: restarted

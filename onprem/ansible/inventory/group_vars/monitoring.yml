@@ -1,0 +1,3 @@
+loki_push_url: "http://10.0.2.140:3100/loki/api/v1/push"
+prometheus_write_url: "http://10.0.2.140:9090/api/v1/write"
+alloy_debug_echo: true

@@ -1,0 +1,114 @@
+logging {
+  level = "info"
+}
+
+livedebugging {
+  enabled = true
+}
+
+// ---------- LOGS IN ----------
+
+// 1) Logs pushed by Alloy agents on workstations/servers
+loki.source.api "agents" {
+  http {
+    listen_address = "0.0.0.0"
+    listen_port    = 3100
+  }
+  labels     = { site = "onprem" }
+  forward_to = [loki.write.aws.receiver{% if alloy_debug_echo %}, loki.echo.debug.receiver{% endif %}]
+}
+
+// 2) Syslog from pfSense (set pfSense to RFC 5424 format)
+loki.source.syslog "pfsense" {
+  listener {
+    address  = "0.0.0.0:1514"
+    protocol = "udp"
+    labels   = { source = "pfsense", site = "onprem" }
+  }
+  relabel_rules = loki.relabel.syslog.rules
+  forward_to    = [loki.process.pfsense.receiver]
+}
+
+loki.relabel "syslog" {
+  forward_to = []
+  rule {
+    source_labels = ["__syslog_message_hostname"]
+    target_label  = "host"
+  }
+  rule {
+    source_labels = ["__syslog_message_app_name"]
+    target_label  = "app"
+  }
+}
+
+// Parse pfSense filterlog lines (IPv4) -> labels for action + interface
+loki.process "pfsense" {
+  stage.match {
+    selector = "{app=\"filterlog\"}"
+    stage.regex {
+      expression = "^(?P<rule>\\d*),[^,]*,[^,]*,(?P<tracker>\\d*),(?P<interface>[^,]*),(?P<reason>[^,]*),(?P<action>[^,]*),(?P<direction>[^,]*),4,[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,(?P<proto>[^,]*),[^,]*,(?P<src_ip>[^,]*),(?P<dst_ip>[^,]*)"
+    }
+    stage.labels {
+      values = { action = "", interface = "" }
+    }
+  }
+  forward_to = [loki.write.aws.receiver{% if alloy_debug_echo %}, loki.echo.debug.receiver{% endif %}]
+}
+
+// 3) The collector's own journal
+loki.relabel "journal" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+}
+
+loki.source.journal "self" {
+  relabel_rules = loki.relabel.journal.rules
+  labels        = { job = "journal", host = "collector", site = "onprem" }
+  forward_to    = [loki.write.aws.receiver]
+}
+
+// ---------- METRICS IN ----------
+
+// 4) Metrics pushed by agents
+prometheus.receive_http "agents" {
+  http {
+    listen_address = "0.0.0.0"
+    listen_port    = 9009
+  }
+  forward_to = [prometheus.remote_write.aws.receiver]
+}
+
+// 5) The collector's own host metrics
+prometheus.exporter.unix "self" { }
+
+prometheus.scrape "self" {
+  targets         = prometheus.exporter.unix.self.targets
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.aws.receiver]
+}
+
+// ---------- OUT TO AWS (over VPN) ----------
+
+loki.write "aws" {
+  endpoint {
+    url                 = "{{ loki_push_url }}"
+    max_backoff_period  = "5m"
+    max_backoff_retries = 0
+  }
+  external_labels = { collector = "collector" }
+}
+
+prometheus.remote_write "aws" {
+  endpoint {
+    url = "{{ prometheus_write_url }}"
+  }
+  external_labels = { site = "onprem", collector = "collector" }
+}
+
+{% if alloy_debug_echo %}
+// Debug: print received logs into Alloy's own log (journalctl -u alloy)
+loki.echo "debug" { }
+{% endif %}
