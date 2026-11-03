@@ -19,8 +19,15 @@ module "soar" {
   source = "./modules/soar"
 }
 module "vpn" {
-  source = "./modules/vpn"
+  source             = "./modules/vpn"
+  tgw_id             = module.network.tgw_id
+  tgw_route_table_id = module.network.tgw_route_table_id
+  onprem_public_ip   = var.onprem_public_ip
+  onprem_cidrs       = var.onprem_cidrs
+  tunnel1_psk        = var.vpn_tunnel1_psk
+  tunnel2_psk        = var.vpn_tunnel2_psk
 }
+
 
 module "web" {
   source                  = "./modules/web"

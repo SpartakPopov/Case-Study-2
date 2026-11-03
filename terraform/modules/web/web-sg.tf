@@ -32,3 +32,12 @@ resource "aws_vpc_security_group_egress_rule" "web_http_out" {
   to_port           = 80
   ip_protocol       = "tcp"
 }
+
+
+resource "aws_vpc_security_group_ingress_rule" "web_ping_from_onprem" {
+  security_group_id = aws_security_group.web.id
+  cidr_ipv4         = "192.168.0.0/18"
+  ip_protocol       = "icmp"
+  from_port         = -1
+  to_port           = -1
+}

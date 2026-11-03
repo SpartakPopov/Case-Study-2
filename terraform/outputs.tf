@@ -1,0 +1,15 @@
+output "vpn_tunnel1_address" {
+  value = module.vpn.tunnel1_address
+}
+
+output "vpn_tunnel2_address" {
+  value = module.vpn.tunnel2_address
+}
+
+output "vpn_tunnel1_inside" {
+  value = module.vpn.tunnel1_inside
+}
+
+output "vpn_tunnel2_inside" {
+  value = module.vpn.tunnel2_inside
+}

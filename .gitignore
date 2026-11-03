@@ -6,3 +6,4 @@
 *.retry
 *.log
 .vault_pass
+terraform/terraform.tfvars
