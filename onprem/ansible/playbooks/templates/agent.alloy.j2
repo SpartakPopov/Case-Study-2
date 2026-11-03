@@ -1,0 +1,57 @@
+// ===== Innovatech Alloy agent (managed by Ansible) =====
+logging {
+  level = "warn"
+}
+
+// ---------- LOGS: systemd journal (sshd, sudo, system) ----------
+loki.relabel "journal" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label  = "app"
+  }
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+}
+
+loki.source.journal "system" {
+  max_age       = "12h"
+  relabel_rules = loki.relabel.journal.rules
+  labels        = { job = "journal", host = "{{ inventory_hostname }}" }
+  forward_to    = [loki.write.collector.receiver]
+}
+
+loki.write "collector" {
+  endpoint {
+    url = "http://{{ collector_ip }}:3100/loki/api/v1/push"
+  }
+}
+
+// ---------- METRICS: host CPU/RAM/disk/network ----------
+prometheus.exporter.unix "host" { }
+
+prometheus.scrape "host" {
+  targets         = prometheus.exporter.unix.host.targets
+  scrape_interval = "30s"
+  forward_to      = [prometheus.relabel.host.receiver]
+}
+
+prometheus.relabel "host" {
+  forward_to = [prometheus.remote_write.collector.receiver]
+  rule {
+    target_label = "instance"
+    replacement  = "{{ inventory_hostname }}"
+  }
+}
+
+prometheus.remote_write "collector" {
+  endpoint {
+    url = "http://{{ collector_ip }}:9009/api/v1/metrics/write"
+  }
+}
