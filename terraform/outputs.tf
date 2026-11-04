@@ -13,3 +13,7 @@ output "vpn_tunnel1_inside" {
 output "vpn_tunnel2_inside" {
   value = module.vpn.tunnel2_inside
 }
+
+output "monitoring_instance_id" {
+  value = module.monitoring.instance_id
+}

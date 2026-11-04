@@ -13,8 +13,12 @@ module "data" {
 
 
 module "monitoring" {
-  source = "./modules/monitoring"
+  source               = "./modules/monitoring"
+  internal_vpc_id      = module.network.internal_vpc_id
+  monitoring_subnet_id = module.network.monitoring_subnet_id
+  zone_id              = module.dns.zone_id
 }
+
 module "soar" {
   source = "./modules/soar"
 }
