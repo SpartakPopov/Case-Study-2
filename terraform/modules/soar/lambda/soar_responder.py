@@ -13,7 +13,8 @@ from botocore.exceptions import ClientError
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 
-# ---------- Settings, loaded once when the Lambda starts ----------
+
+# loading settings
 TABLE = boto3.resource("dynamodb").Table(os.environ["TABLE_NAME"])
 ALLOWLIST = [ipaddress.ip_network(n.strip()) for n in os.environ["ALLOWLIST"].split(",") if n.strip()]
 BLOCK_SECONDS = int(os.environ.get("BLOCK_HOURS", "24")) * 3600
@@ -23,13 +24,13 @@ API_KEY = boto3.client("ssm").get_parameter(
     Name=os.environ["PFSENSE_KEY_PARAM"], WithDecryption=True
 )["Parameter"]["Value"]
 
-# pfSense uses a self-signed certificate in this lab, so certificate checks are off
+# cert checks off for pfsense
 TLS = ssl.create_default_context()
 TLS.check_hostname = False
 TLS.verify_mode = ssl.CERT_NONE
 
 
-def handler(event, context):
+def handler(event, context): # function to go through messages and tell lambda what failed
     failures = []
     for record in event["Records"]:
         try:
@@ -41,7 +42,7 @@ def handler(event, context):
     return {"batchItemFailures": failures}
 
 
-def process(notification):
+def process(notification): # checking if message is alerting
     for alert in notification.get("alerts", []):
         if alert.get("status") != "firing":
             log.info("SKIP %s alert for %s", alert.get("status"), alert.get("src_ip"))
@@ -49,8 +50,8 @@ def process(notification):
         handle_firing(alert)
 
 
-def handle_firing(alert):
-    # 1. Only act on a real IP address
+def handle_firing(alert): # function runs checks on each alert
+    #  Only act on a real IP address
     raw_ip = alert.get("src_ip", "")
     try:
         ip = str(ipaddress.ip_address(raw_ip))
@@ -58,24 +59,24 @@ def handle_firing(alert):
         log.warning("SKIP invalid src_ip %r", raw_ip)
         return
 
-    # 2. Never block our own infrastructure
+    #  Never block specific infrastructure (predefined)
     if any(ipaddress.ip_address(ip) in net for net in ALLOWLIST):
         log.info("SKIP %s is on the allow-list", ip)
         return
 
-    # 3. Only act once per attacker while the incident is open
+    # Only act once per attacker while the incident is open
     if already_handled(ip):
         log.info("SKIP %s already handled", ip)
         return
 
-    # 4. Block it; if that fails, release the lock so the retry can try again
+    # Block it and if that fails release the lock so the retry can try again
     try:
         block_ip(ip)
     except Exception:
         TABLE.delete_item(Key={"src_ip": ip})
         raise
 
-    # The report: everything about the incident goes to CloudWatch Logs
+    # Reporting incident goes to CloudWatch Logs
     log.info(
         "ACTION blocked %s on pfSense alias %s playbook=%s host=%s severity=%s summary=%r",
         ip, BLOCK_ALIAS, alert.get("playbook"), alert.get("host"),
@@ -83,7 +84,7 @@ def handle_firing(alert):
     )
 
 
-def already_handled(ip):
+def already_handled(ip): # add blocked IP to DB and checks if an ip already is blocked
     """Mark the IP as handled; True if it already was (and not expired)."""
     now = int(time.time())
     try:
@@ -99,7 +100,7 @@ def already_handled(ip):
         raise
 
 
-def block_ip(ip):
+def block_ip(ip): # add the IP to BLOCK_ALIAS in pfsense
     """Add the IP to the pfSense alias that the block rules use, then apply."""
     query = urllib.parse.urlencode({"name": BLOCK_ALIAS})
     aliases = pfsense("GET", f"/api/v2/firewall/aliases?{query}")["data"]
@@ -115,7 +116,7 @@ def block_ip(ip):
     pfsense("POST", "/api/v2/firewall/apply")
 
 
-def pfsense(method, path, body=None):
+def pfsense(method, path, body=None): # for establishing connection to pfsense API
     """Call the pfSense REST API; raises on any HTTP error or timeout."""
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(
