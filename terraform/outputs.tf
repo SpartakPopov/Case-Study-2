@@ -17,3 +17,7 @@ output "vpn_tunnel2_inside" {
 output "monitoring_instance_id" {
   value = module.monitoring.instance_id
 }
+
+output "soar_alerts_topic_arn" {
+  value = module.soar.alerts_topic_arn
+}

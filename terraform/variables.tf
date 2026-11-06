@@ -18,3 +18,14 @@ variable "vpn_tunnel2_psk" {
   type      = string
   sensitive = true
 }
+
+variable "alert_email" {
+  description = "alert receiving email"
+  type        = string
+}
+
+variable "pfsense_api_key" {
+  description = "REST API key for pfSense R2 (SOAR blocking)"
+  type        = string
+  sensitive   = true
+}

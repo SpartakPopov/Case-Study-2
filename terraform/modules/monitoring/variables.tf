@@ -36,3 +36,8 @@ variable "admin_cidr" {
   type        = string
   default     = "192.168.10.10/32"
 }
+
+variable "soar_alerts_topic_arn" {
+  description = "SNS topic Grafana publishes SOAR alerts to"
+  type        = string
+}

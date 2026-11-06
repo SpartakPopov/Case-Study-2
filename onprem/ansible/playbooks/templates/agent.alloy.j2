@@ -1,4 +1,4 @@
-// ===== Innovatech Alloy agent (managed by Ansible) =====
+// Alloy Agent
 logging {
   level = "warn"
 }
@@ -21,7 +21,7 @@ loki.relabel "journal" {
 }
 
 loki.source.journal "system" {
-  max_age       = "12h"
+  max_age       = "12h" //reads only the last 12 hours of history
   relabel_rules = loki.relabel.journal.rules
   labels        = { job = "journal", host = "{{ inventory_hostname }}" }
   forward_to    = [loki.write.collector.receiver]

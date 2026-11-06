@@ -13,15 +13,23 @@ module "data" {
 
 
 module "monitoring" {
-  source               = "./modules/monitoring"
-  internal_vpc_id      = module.network.internal_vpc_id
-  monitoring_subnet_id = module.network.monitoring_subnet_id
-  zone_id              = module.dns.zone_id
+  source                = "./modules/monitoring"
+  internal_vpc_id       = module.network.internal_vpc_id
+  monitoring_subnet_id  = module.network.monitoring_subnet_id
+  zone_id               = module.dns.zone_id
+  soar_alerts_topic_arn = module.soar.alerts_topic_arn
 }
 
+
 module "soar" {
-  source = "./modules/soar"
+  source          = "./modules/soar"
+  alert_email     = var.alert_email
+  internal_vpc_id = module.network.internal_vpc_id
+  soar_subnet_ids = module.network.soar_subnet_ids
+  pfsense_api_key = var.pfsense_api_key
 }
+
+
 module "vpn" {
   source             = "./modules/vpn"
   tgw_id             = module.network.tgw_id

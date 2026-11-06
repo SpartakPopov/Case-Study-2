@@ -116,6 +116,138 @@ resource "aws_instance" "monitoring" {
     YAML
 
 
+
+    # Grafana alert rules (SOAR detection)
+    mkdir -p /etc/grafana/provisioning/alerting
+    cat > /etc/grafana/provisioning/alerting/ssh-bruteforce.yaml <<'YAML'
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: ssh
+        folder: SOAR
+        interval: 1m
+        rules:
+          - uid: dg3f454xg4d8gc
+            title: SSH bruteforce
+            condition: C
+            data:
+              - refId: A
+                queryType: instant
+                relativeTimeRange:
+                  from: 600
+                  to: 0
+                datasourceUid: loki
+                model:
+                  editorMode: code
+                  expr: |-
+                    sum by (host, src_ip) (
+                      count_over_time(
+                        {job="journal", app=~"sshd|sshd-session"}
+                          |= "Failed password"
+                          | regexp `from (?P<src_ip>\d+\.\d+\.\d+\.\d+)`
+                        [10m]
+                      )
+                    )
+                  instant: true
+                  queryType: instant
+                  refId: A
+              - refId: C
+                queryType: expression
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  expression: A
+                  refId: C
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  conditions:
+                    - type: query
+                      evaluator:
+                        type: gt
+                        params: [5]
+                      operator:
+                        type: and
+                      query:
+                        params: [C]
+                      reducer:
+                        type: last
+                        params: []
+            noDataState: OK
+            execErrState: Error
+            keepFiringFor: 5m
+            annotations:
+              summary: SSH brute force from {{ $labels.src_ip }} against {{ $labels.host }}
+              description: "{{ $values.A.Value }} failed SSH logins in the last 10 minutes from {{ $labels.src_ip }} to {{ $labels.host }}."
+            labels:
+              playbook: ssh_bruteforce
+              severity: high
+            isPaused: false
+            notification_settings:
+              receiver: soar-sns
+              group_by: ['alertname', 'src_ip']
+              group_wait: 10s
+              group_interval: 1m
+              repeat_interval: 4h
+
+    YAML
+
+
+
+    # Grafana notification template: JSON message for email + Lambda
+    cat > /etc/grafana/provisioning/alerting/templates.yaml <<'YAML'
+    apiVersion: 1
+    templates:
+      - orgId: 1
+        name: soar
+        template: |
+          {{ define "soar.subject" }}[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} {{ .CommonLabels.src_ip }}{{ end }}
+
+          {{ define "soar.message" -}}
+          {
+            "status": "{{ .Status }}",
+            "alerts": [
+          {{- range $i, $a := .Alerts }}{{ if $i }},{{ end }}
+              {
+                "status": "{{ $a.Status }}",
+                "alertname": "{{ $a.Labels.alertname }}",
+                "playbook": "{{ $a.Labels.playbook }}",
+                "severity": "{{ $a.Labels.severity }}",
+                "src_ip": "{{ $a.Labels.src_ip }}",
+                "host": "{{ $a.Labels.host }}",
+                "summary": "{{ $a.Annotations.summary }}",
+                "description": "{{ $a.Annotations.description }}",
+                "starts_at": "{{ $a.StartsAt.Format "2006-01-02T15:04:05Z07:00" }}",
+                "fingerprint": "{{ $a.Fingerprint }}"
+              }
+          {{- end }}
+            ]
+          }
+          {{- end }}
+    YAML
+
+     
+
+
+    # Grafana contact point: publish alerts to the SOAR SNS topic
+    cat > /etc/grafana/provisioning/alerting/contact-points.yaml <<'YAML'
+    apiVersion: 1
+    contactPoints:
+      - orgId: 1
+        name: soar-sns
+        receivers:
+          - uid: ag3f9r87pbncwb
+            type: sns
+            settings:
+              sigv4:
+                region: eu-central-1
+              topic_arn: ${var.soar_alerts_topic_arn}
+              subject: '{{ template "soar.subject" . }}'
+              message: '{{ template "soar.message" . }}'
+            disableResolveMessage: false
+    YAML
+
+
     systemctl enable loki grafana-server prometheus
     systemctl restart loki grafana-server prometheus
 
