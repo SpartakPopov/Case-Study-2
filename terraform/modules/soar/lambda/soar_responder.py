@@ -101,19 +101,26 @@ def already_handled(ip): # add blocked IP to DB and checks if an ip already is b
 
 
 def block_ip(ip): # add the IP to BLOCK_ALIAS in pfsense
-    """Add the IP to the pfSense alias that the block rules use, then apply."""
-    query = urllib.parse.urlencode({"name": BLOCK_ALIAS})
-    aliases = pfsense("GET", f"/api/v2/firewall/aliases?{query}")["data"]
-    if not aliases:
-        raise RuntimeError(f"alias {BLOCK_ALIAS} not found on pfSense")
-
-    alias = aliases[0]
+    """Add the IP to the pfSense alias that the block rules use, apply, then verify."""
+    alias = find_alias()
     if ip in alias["address"]:
         log.info("%s is already in %s", ip, BLOCK_ALIAS)
         return
 
     pfsense("PATCH", "/api/v2/firewall/alias", {"id": alias["id"], "address": alias["address"] + [ip]})
     pfsense("POST", "/api/v2/firewall/apply")
+
+    # make sure the IP really ended up in the block alias and not somewhere else
+    if ip not in find_alias()["address"]:
+        raise RuntimeError(f"{ip} was not added to {BLOCK_ALIAS}")
+
+
+def find_alias(): # get all aliases and pick the block alias by its name
+    aliases = pfsense("GET", "/api/v2/firewall/aliases")["data"]
+    for alias in aliases:
+        if alias["name"] == BLOCK_ALIAS:
+            return alias
+    raise RuntimeError(f"alias {BLOCK_ALIAS} not found on pfSense")
 
 
 def pfsense(method, path, body=None): # for establishing connection to pfsense API
